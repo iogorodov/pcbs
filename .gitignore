@@ -1,0 +1,7 @@
+.DS_Store
+*.sublime-workspace
+**/.out
+**/fp-info-cache
+**/*-backups/
+**/*.lck
+**/*.kicad_prl
