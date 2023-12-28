@@ -1,5 +1,5 @@
 PROGRAMMER	:=	usbtiny
-TARGET		:=	attiny2313a
+TARGET		:=	attiny45
 
 CC 			:=	avr-gcc
 CFLAGS		:=	-mmcu=$(TARGET) -Os -flto -Wall
