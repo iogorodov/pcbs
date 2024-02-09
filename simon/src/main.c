@@ -2,76 +2,126 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 
-#define TIMER_PRESCALAR     64
-#define TIMER_COMPARE       125
-#define TICKS_SECOND        25
+uint16_t g_random = 0;
 
-#if TIMER_PRESCALAR == 1
-#define TIMER_PRESCALAR_VALUE   1
-#elif TIMER_PRESCALAR == 8
-#define TIMER_PRESCALAR_VALUE   2
-#elif TIMER_PRESCALAR == 64
-#define TIMER_PRESCALAR_VALUE   3
-#endif
-
-const uint8_t DISPLAY_TICKS = (1000 / TIMER_PRESCALAR) * (1000 / TIMER_COMPARE) / TICKS_SECOND;
-
-const uint8_t LEDS[] PROGMEM = { 0, (1 << PB1) | (1 << PB4), (1 << PB3), (1 << PB1) | (1 << PB3), (1 << PB4) };
-
-volatile uint8_t g_displayTick = 0;
-volatile uint8_t g_displayTickCount = 0;
-
-ISR(TIM0_COMPA_vect) {
-    if (!g_displayTickCount) {
-        g_displayTick = 1;
-        g_displayTickCount = DISPLAY_TICKS;
+uint8_t getRandom() {
+    for (uint8_t i = 0; i < 2; ++i) {
+        uint8_t lsb = g_random & 1;
+        g_random >>= 1;
+        if (lsb || !g_random) {
+            g_random ^= 0xb400;
+        }
     }
-    g_displayTickCount--;
+
+    return g_random & 0xff;
 }
+
+uint8_t g_lastRandom = 0;
+
+uint8_t getRandom4() {
+    uint8_t value;
+    do {
+        value = (getRandom() & 0b00000011) + 1;
+    } while (value == g_lastRandom);
+    g_lastRandom = value;
+    return value;
+}
+
+const uint8_t LEDS[] PROGMEM = { 0, _BV(PB1) | _BV(PB4), _BV(PB3), _BV(PB1) | _BV(PB3), _BV(PB4) };
 
 void led(uint8_t index) {
-    PORTB =  pgm_read_byte_near(LEDS + index);
+    PORTB = (PORTB & (0xff ^ (_BV(PB1) | _BV(PB3) | _BV(PB4)))) | pgm_read_byte_near(LEDS + index);
 }
 
-uint8_t getButton() {
+uint8_t getButtonsADC() {
+    ADCSRA  = _BV(ADEN) | _BV(ADSC);
+    while (ADCSRA & (1 << ADSC));
+    const uint8_t value = ADCH;
+    if (value > 243)
+        return 0;
+    if (value > 201)
+        return 4;
+    if (value > 149)
+        return 3;
+    if (value > 64)
+        return 2;
+    return 1;
+}
+
+uint8_t getButtonsPin() {
     return ((PINB & (1 << PB2)) == 0) ? 1 : 0;
 }
 
 uint8_t getButtons() {
-    const uint8_t value = ADCH;
-    if (value > 243) {
-        return 0;
-    } else if (value > 201) {
-        return 4;
-    } else if (value > 149) {
-        return 3;
-    } else if (value > 64) {
-        return 2;
+    if (ADCSRA & _BV(ADEN)) {
+        return getButtonsADC();
     } else {
-        return 1;
+        return getButtonsPin();
     }
-    // return ((PINB & (1 << PB2)) == 0) ? 1 : 0;
+}
+
+void setButtonsMode(uint8_t enable) {
+    ADCSRA  = (enable << ADEN) | (enable << ADSC);
+    DIDR0   = (enable << ADC1D);
+}
+
+void init(uint8_t buttons);
+void sleep(uint8_t buttons);
+void score(uint8_t buttons);
+void gameStep(uint8_t buttons);
+void gameWait(uint8_t buttons);
+
+uint8_t g_step = 0;
+void(*g_stepFunc)(uint8_t) = init;
+
+void init(uint8_t buttons) {
+    if (g_step)
+        return;
+
+    led(getRandom4());
+
+    g_step = 12;
+}
+
+void sleep(uint8_t buttons) {
+
+}
+
+void score(uint8_t buttons) {
+
+}
+
+void gameStep(uint8_t buttons) {
+
+}
+
+void gameWait(uint8_t buttons) {
+
+}
+
+volatile uint8_t g_tick = 0;
+
+ISR(WDT_vect) {
+    g_tick = 1;
 }
 
 int main()
 {
-    DDRB = (1 << PB1) | (1 << PB3) | (1 << PB4);
+    DDRB    = _BV(PB1) | _BV(PB3) | _BV(PB4);
 
-    TCCR0A = 0b00000010;
-    TCCR0B = 0b00000000 | TIMER_PRESCALAR_VALUE;
-    OCR0A = TIMER_COMPARE - 1;
-    TIMSK0 = 0b00000100;
+    ADMUX   = _BV(ADLAR) | _BV(MUX0);
+    ADCSRA  = 0;
+    ADCSRB  = 0;
 
+    WDTCR   = _BV(WDTIE) | _BV(WDP0);
+
+    // setButtonsMode(1);
     sei();
 
-    ADMUX  = 0b00100001;
-    ADCSRA = 0b10100100;
-    ADCSRB = 0b00000011;
-
     while (1) {
-        while (!g_displayTick);
-        g_displayTick = 0;
-
-        led(getButtons());
+        while (!g_tick);
+        g_stepFunc(getButtons());
+        g_step--;
+        g_tick = 0;
     }
 }
