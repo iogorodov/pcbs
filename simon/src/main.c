@@ -107,8 +107,7 @@ void(*g_stepFunc)(uint8_t) = menu;
 
 void menu(uint8_t button) {
     getRandom();
-    // led(4 - g_step / 8);
-    led(button);
+    led(4 - g_step / 8);
 }
 
 int main()
