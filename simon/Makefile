@@ -49,15 +49,15 @@ $(OUTDIR)/%.o: $(SRCDIR)/%.c
 
 docs: $(DOCS)
 
-$(DOCSDIR)/sch.svg: ./sch/tinytimer.kicad_sch
+$(DOCSDIR)/sch.svg: ./sch/simon.kicad_sch
 	$(KICAD) sch export svg -enO -o $(OUTDIR)/sch $<
 	mv $(OUTDIR)/sch/* $@
 	rm -rf $(OUTDIR)/sch
 
-$(DOCSDIR)/pcb-back.pdf: ./sch/tinytimer.kicad_pcb
+$(DOCSDIR)/pcb-back.pdf: ./sch/simon.kicad_pcb
 	$(KICAD) pcb export pdf -l B.Cu,Edge.Cuts --black-and-white --drill-shape-opt 1 -o $@ $<
 
-$(DOCSDIR)/pcb.svg: ./sch/tinytimer.kicad_pcb
+$(DOCSDIR)/pcb.svg: ./sch/simon.kicad_pcb
 	$(KICAD) pcb export svg -l B.Cu,F.Cu,Edge.Cuts --exclude-drawing-sheet --page-size-mode 2 -o $@ $<
 
 clean_docs:
